@@ -3,6 +3,10 @@
         "*.sqlbook": "sql",
         "*.ndjson": "jsonl",
         "*.dbclient-js": "javascript",
-        "buf.C": "cpp"
+        "buf.C": "cpp",
+        "bufHash.C": "cpp",
+        "db.C": "cpp",
+        "error.C": "cpp",
+        "testbuf.C": "cpp"
     }
 }

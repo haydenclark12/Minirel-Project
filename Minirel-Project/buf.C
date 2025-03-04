@@ -65,12 +65,49 @@ BufMgr::~BufMgr() {
 
 const Status BufMgr::allocBuf(int & frame) 
 {
+    int scanned = 0;
 
+    while (scanned < numBufs){
+        BufDesc * buf = &bufTable[clockHand];
 
+        if (!buf->valid){ // Check if valid set
+            frame = clockHand;
+            buf->valid = false;
+            advanceClock();
+            return OK;
+        }
 
+        if (buf->refbit){ // If page hasn't been recently used
+            buf->refbit = false;
+            advanceClock();
+            scanned++;
+            continue;
+        }
 
+        if (buf->pinCnt > 0){ // If page isn't pinned
+            advanceClock();
+            scanned++;
+            continue;
+        }
+        if (buf->dirty == true){ // If page needs to be flushed to disk
+            Status status = buf->file->writePage(buf->pageNo,&(bufPool[clockHand]));
+            if (status != OK) {
+                return status;
+            }
+            buf ->dirty = false;
+        }
+        hashTable->remove(buf->file,buf->pageNo);
 
-
+        frame = clockHand;
+        buf->valid = true;
+        buf->file = NULL; // Clear old file reference
+        buf->pageNo = -1; // Reset page number
+        advanceClock();
+        return OK;
+                    
+    
+    }
+    return BUFFEREXCEEDED;
 }
 
 	
