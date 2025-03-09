@@ -113,22 +113,53 @@ const Status BufMgr::allocBuf(int & frame)
 	
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page)
 {
+    // Check if page is already in buffer pool, if so increment pin count, update refbit, and return page pointer
+    int frameNo = 0;
+    Status status = hashTable->lookup(file, PageNo, frameNo);
+    if (status == OK) {
+        bufTable[frameNo].pinCnt++;
+        bufTable[frameNo].refbit = true;
+        page = &bufPool[frameNo];
+        return OK;
+    }
 
-
-
-
-
+    // Otherwise, find a free frame in the buffer pool and read the page into it
+    else if (status == HASHNOTFOUND){
+        status = allocBuf(frameNo);
+        if (status != OK) {
+            return status;
+        }
+        status = file->readPage(PageNo, &bufPool[frameNo]);
+        if (status != OK) {
+            return status;
+        }
+        bufTable[frameNo].Set(file, PageNo);
+        page = &bufPool[frameNo];
+        return OK;
+    }
+    return status;
 }
 
 
 const Status BufMgr::unPinPage(File* file, const int PageNo, 
 			       const bool dirty) 
 {
-
-
-
-
-
+    // Check if page is in buffer pool
+    int frameNo = 0;
+    Status status = hashTable->lookup(file, PageNo, frameNo);
+    if (status != OK) {
+        return status;
+    }
+    // Pin count is 0, so page is not pinned
+    if (bufTable[frameNo].pinCnt == 0) {
+        return PAGENOTPINNED;
+    }
+    // Decrement pin count, updating dirty bit if necessary
+    bufTable[frameNo].pinCnt--;
+    if (dirty) {
+        bufTable[frameNo].dirty = true;
+    }
+    return OK;
 }
 
 const Status BufMgr::allocPage(File* file, int& pageNo, Page*& page) 
