@@ -69,7 +69,12 @@ BufMgr::~BufMgr()
     delete[] bufTable;
     delete[] bufPool;
 }
-
+/*
+Allocates a free frame using the clock algorithm; if necessary, writing a dirty page back to disk.
+Returns BUFFEREXCEEDED if all buffer frames are pinned, UNIXERR if the call to the I/O layer returned 
+an error when a dirty page was being written to disk and OK otherwise.  This private method will get 
+called by the readPage() and allocPage() methods described below. 
+*/
 const Status BufMgr::allocBuf(int &frame)
 {
     int scanned = 0;
@@ -79,9 +84,9 @@ const Status BufMgr::allocBuf(int &frame)
         BufDesc *buf = &bufTable[clockHand];
 
         if (!buf->valid)
-        { // Check if valid set
+        { // If frame is free allocate immediately  
             frame = clockHand;
-            buf->valid = false;
+            buf->Clear();
             advanceClock();
             return OK;
         }
@@ -90,7 +95,6 @@ const Status BufMgr::allocBuf(int &frame)
         { // If page hasn't been recently used
             buf->refbit = false;
             advanceClock();
-            scanned++;
             continue;
         }
 
@@ -100,7 +104,7 @@ const Status BufMgr::allocBuf(int &frame)
             scanned++;
             continue;
         }
-        if (buf->dirty == true)
+        if (buf->dirty)
         { // If page needs to be flushed to disk
             Status status = buf->file->writePage(buf->pageNo, &(bufPool[clockHand]));
             if (status != OK)
@@ -109,12 +113,23 @@ const Status BufMgr::allocBuf(int &frame)
             }
             buf->dirty = false;
         }
-        hashTable->remove(buf->file, buf->pageNo);
+
+        
+        if (buf->valid)
+        { // If page is valid and is going to be evicted remove from hash table
+           
+            Status hashStatus = hashTable->remove(buf->file, buf->pageNo);
+            if (hashStatus != OK)
+            {
+                return hashStatus;
+            }
+        }
+        
+
+    
 
         frame = clockHand;
-        buf->valid = true;
-        buf->file = NULL; // Clear old file reference
-        buf->pageNo = -1; // Reset page number
+        buf->Clear();
         advanceClock();
         return OK;
     }
@@ -149,6 +164,14 @@ const Status BufMgr::readPage(File *file, const int PageNo, Page *&page)
         {
             return status;
         }
+
+        // Insert the page into the hash table
+        Status hashStatus = hashTable->insert(file,PageNo,frameNo);
+        if( hashStatus != OK)
+        {
+            return hashStatus;
+        }
+
         bufTable[frameNo].Set(file, PageNo);
         page = &bufPool[frameNo];
         return OK;
