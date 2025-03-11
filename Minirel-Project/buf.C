@@ -1,5 +1,5 @@
 // Description: Buffer Manager Implementation, responsible for managing the buffer pool and handling page reads and writes
-// Authors: Theo Leao Larrieux (leolarrieux), Hayden Clark (TODO ID), and Luke Janssen (TODO ID)
+// Authors: Theo Leao Larrieux (leolarrieux), Hayden Clark (hdclark2), and Luke Janssen (TODO ID)
 
 #include <memory.h>
 #include <unistd.h>
@@ -70,11 +70,16 @@ BufMgr::~BufMgr()
     delete[] bufPool;
 }
 /*
-Allocates a free frame using the clock algorithm; if necessary, writing a dirty page back to disk.
-Returns BUFFEREXCEEDED if all buffer frames are pinned, UNIXERR if the call to the I/O layer returned 
-an error when a dirty page was being written to disk and OK otherwise.  This private method will get 
-called by the readPage() and allocPage() methods described below. 
-*/
+ * Allocates a free frame using the clock algorithm.
+ * 
+ * Parameters:
+ *   frame - Reference to an integer where the allocated frame number will be stored
+ * 
+ * Returns:
+ *   OK if a free frame is successfully allocated.
+ *   BUFFEREXCEEDED if all buffer frames are pinned.
+ *   UNIXERR if writing a dirty page to disk fails.
+ */
 const Status BufMgr::allocBuf(int &frame)
 {
     int scanned = 0;
@@ -136,8 +141,21 @@ const Status BufMgr::allocBuf(int &frame)
     return BUFFEREXCEEDED;
 }
 
-// Given a file and page number, reads the page into the buffer pool
-// If the page is already in the buffer pool, increments the pin count and updates the refbit
+/*
+ * Reads the page into the buffer pool
+ *
+ * Parameters:
+ *      file   - Reference to file on disk
+ *      PageNo - Page number to be read
+ *      page   - Refernece to a pointer where page will be stored
+ * 
+ *  Returns: 
+ *      OK if the page is successfully read into the buffer
+ *      UNIXERR if a Unix error occered
+ *      BUFFEREXCEEDED if all buffer frames are pinned
+ *      HASHTBLERROR if a hash table error occurred
+ */
+
 const Status BufMgr::readPage(File *file, const int PageNo, Page *&page)
 {
     // Check if page is already in buffer pool, if so increment pin count, update refbit, and return page pointer
@@ -178,9 +196,20 @@ const Status BufMgr::readPage(File *file, const int PageNo, Page *&page)
     }
     return status;
 }
-
-// Given a file and its page number, decrements the pin count of the page in the buffer pool
-// If the dirty flag is set, updates the dirty bit of the page in the buffer pool
+/*
+ * Decrements the pin count of the page in the buffer pool and if dirt flag is set,
+ * updates the dirty bit of the page in the buffer pool.
+ * 
+ *  Parameters: 
+ *      file   - Reference to the file on disk
+ *      PageNo - Page number to be read
+ *      dirty  - Flag for it page is dirty
+ * 
+ *  Returns:
+ *      OK if no errors occured
+ *      HASHNOTFOUND if the page is not in the buffer pool hash table
+ *      PAGENOTPINNED if the pin count is already 0
+ */
 const Status BufMgr::unPinPage(File *file, const int PageNo,
                                const bool dirty)
 {
