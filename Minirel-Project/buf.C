@@ -234,7 +234,20 @@ const Status BufMgr::unPinPage(File *file, const int PageNo,
     return OK;
 }
 
-// Given a file, we allocate a new page for it and add it to the buffer pool
+/*
+ * Allocate a new page for file and add it to the buffer pool
+ * 
+ *  Parameters: 
+ *      file   - Reference to the file on disk
+ *      PageNo - Page number to be read
+ *      page   - Refernece to a pointer where page will be stored
+ * 
+ *  Returns:
+ *      OK if no errors occured
+ *      UNIXERR if a Unix error occurred
+ *      BUFFEREXCEEDED if all buffer frames are pinned
+ *      HASHTBLERROR if a hash table error occured
+ */
 const Status BufMgr::allocPage(File *file, int &pageNo, Page *&page)
 {
     Status status = file->allocatePage(pageNo);
