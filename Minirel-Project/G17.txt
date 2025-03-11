@@ -1,0 +1,8 @@
+Members: 
+    Hayden Clark - hdclark2@wisc.edu
+    Theo Leao Larrieux - (TODO)
+    Luke Janssen - (TODO)
+
+Contributions:
+    Hayden Clark - Completed allocBuff and fixed minor issue in readPage
+                   as well as add styling for all functions. 
