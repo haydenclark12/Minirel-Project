@@ -1,5 +1,5 @@
 // Description: Buffer Manager Implementation, responsible for managing the buffer pool and handling page reads and writes
-// Authors: Theo Leao Larrieux (leolarrieux), Hayden Clark (hdclark2), and Luke Janssen (TODO ID)
+// Authors: Theo Leao Larrieux (leolarrieux), Hayden Clark (hdclark2), and Luke Janssen (ljanssen)
 
 #include <memory.h>
 #include <unistd.h>

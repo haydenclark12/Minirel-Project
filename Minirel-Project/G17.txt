@@ -1,9 +1,10 @@
 Members: 
     Hayden Clark - hdclark2@wisc.edu
     Theo Leao Larrieux - leolarrieux@wisc.edu
-    Luke Janssen - (TODO)
+    Luke Janssen - lmjanssen@wisc.edu
 
 Contributions:
     Hayden Clark - Completed allocBuff and fixed minor issue in readPage
                    as well as add styling for all functions. 
-    Theo Leao Larrieux - Completed unPinPage, readPage, and allocPage.
+    Theo Leao Larrieux - Completed unPinPage and allocPage.
+    Luke Janssen - Debugged segfault in allocPage and completed readPage. 
