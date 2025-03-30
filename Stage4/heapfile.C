@@ -13,23 +13,48 @@ const Status createHeapFile(const string fileName)
 
     // try to open the file. This should return an error
     status = db.openFile(fileName, file);
-    if (status != OK)
+    if (status != OK)      
     {
-		// file doesn't exist. First create it and allocate
-		// an empty header page and data page.
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
+
+        // File doesn't exist so we create it
+        status = db.createFile(fileName);
+        if (status != OK) return status;
+
+        // Open file so we can allocate pages to it 
+        status = db.openFile(fileName, file);
+        if (status != OK) return status;
+
+        // Allocate the file header page
+        bufMgr->allocPage(file,hdrPageNo,newPage);
+
+        // Cast Page* pointer to FileHdrPage*
+        hdrPage = (FileHdrPage*) newPage;
+
+        // Initialize header page values
+        strncpy(hdrPage->fileName, fileName.c_str(), MAXNAMESIZE);
+        hdrPage->pageCnt = 1;
+        hdrPage->recCnt = 0;
+
+        // Allocate the first data page
+        Page* dataPage;
+        status = bufMgr->allocPage(file,newPageNo,dataPage);
+        if (status != OK) return status;
+
+        // Initialize the values in the header page
+        dataPage->init(newPageNo);
+
+        hdrPage->firstPage = newPageNo;
+        hdrPage->lastPage = newPageNo;
+       
+
+        // Unpin both pages and mark them as dirty
+        status = bufMgr->unPinPage(file,hdrPageNo,true);
+        if (status != OK) return status;
+
+        status = bufMgr->unPinPage(file,newPageNo,true);
+        if (status != OK) return status;
+        //bufMgr->printSelf();
+        return OK;
     }
     return (FILEEXISTS);
 }
@@ -46,21 +71,56 @@ HeapFile::HeapFile(const string & fileName, Status& returnStatus)
     Status 	status;
     Page*	pagePtr;
 
+    
     cout << "opening file " << fileName << endl;
 
     // open the file and read in the header page and the first data page
     if ((status = db.openFile(fileName, filePtr)) == OK)
     {
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
+
+
+        // Ask the file for the first page (header page)
+        status = filePtr->getFirstPage(headerPageNo);
+        if (status != OK) {
+            cerr << "getFirstPage failed\n";
+            returnStatus = status;
+            return;
+        }
+
+        // Read and pin the header page
+        cout << "Reading header page..." << endl;
+        status = bufMgr->readPage(filePtr,headerPageNo,pagePtr);
+		if (status != OK) {
+            cerr << "failed to read header page\n";
+            returnStatus = status;
+            return;
+        }
+
+        cout << "Successfully read header page at " << headerPageNo << endl;
+        headerPage = (FileHdrPage *) pagePtr;
+        cerr << 
+            "Header page info: \n" 
+            <<"Name: "
+            <<headerPage->fileName
+            <<"\nFirst page: "
+            <<headerPage->firstPage
+        << endl;
+
+        hdrDirtyFlag = false;
+
+        // Pin the first data page
+        curPageNo = headerPage->firstPage;
+        status = bufMgr->readPage(filePtr, curPageNo, curPage);
+        if (status != OK) {
+            cerr << "failed to read first data page\n";
+            returnStatus = status;
+            return;
+        }
+        curDirtyFlag = false;
+        curRec = NULLRID;
+    
+        returnStatus = OK;
+        cerr << "Finished HeapFile()" << endl;
 		
     }
     else
