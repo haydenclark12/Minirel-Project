@@ -182,7 +182,11 @@ const Status HeapFile::getRecord(const RID &rid, Record &rec)
     // If the current page is already pinned, check for the record.
     if (curPage == NULL || curPageNo != rid.pagoNo)
     {
+<<<<<<< HEAD
         if (curPage != NULL)
+=======
+        if (curPavge != NULL)
+>>>>>>> e2c59a2c18dfc9cb733ebc7969eafe0c8fe05c1c
         {
             status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
             if (status != OK)
