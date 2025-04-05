@@ -296,10 +296,9 @@ const Status HeapFileScan::resetScan()
 
 const Status HeapFileScan::scanNext(RID &outRid)
 {
-
+    Status status = OK;
     while (true)
     {
-        Status status;
         // If curPage is NULL, we read the first page of the file.
         if (curPage == NULL)
         {
@@ -324,19 +323,15 @@ const Status HeapFileScan::scanNext(RID &outRid)
                 return status;
             curRec = firstRec;
         }
-        else if (curRec.pageNo != -1 && curRec.slotNo != -1)
-        {
-            status = curPage->firstRecord(curRec);
-        }
         else
         {
-            RID nextRec; // TODO: do we need this???
+            RID nextRec;
             status = curPage->nextRecord(curRec, nextRec);
+            curRec = nextRec;
         }
 
         if (status == OK)
         {
-
             Record rec;
             status = curPage->getRecord(curRec, rec);
             if (status != OK)
