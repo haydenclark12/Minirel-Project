@@ -78,7 +78,6 @@ HeapFile::HeapFile(const string &fileName, Status &returnStatus)
     Status status;
     Page *pagePtr;
 
-
     // open the file and read in the header page and the first data page
     if ((status = db.openFile(fileName, filePtr)) == OK)
     {
@@ -394,16 +393,38 @@ const Status HeapFileScan::deleteRecord()
 {
     Status status;
 
+    // make sure we have a valid pointer to a record
+    if (curRec.pageNo == -1 && curRec.slotNo == -1)
+        return NORECORDS;
+
+    // Get the next record before deleting the current one
+    RID nextRid;
+    Status nextStatus = curPage->nextRecord(curRec, nextRid);
+
     // delete the "current" record from the page
     status = curPage->deleteRecord(curRec);
+    if (status != OK)
+        return status;
+
     curDirtyFlag = true;
 
     // reduce count of number of records in the file
     headerPage->recCnt--;
     hdrDirtyFlag = true;
-    return status;
-}
 
+    // Update cursor position to the next record if there is one
+    // otherwise set it to NULLRID so scanNext() will handle moving to the next page
+    if (nextStatus == OK)
+    {
+        curRec = nextRid;
+    }
+    else
+    {
+        curRec = NULLRID;
+    }
+
+    return OK;
+}
 // mark current page of scan dirty
 const Status HeapFileScan::markDirty()
 {
@@ -538,7 +559,7 @@ const Status InsertFileScan::insertRecord(const Record &rec, RID &outRid)
     // If there is no space on current page
     if (status == NOSPACE)
     {
-      
+
         // Allocate and initialize new page
         status = bufMgr->allocPage(filePtr, newPageNo, newPage);
 
@@ -547,10 +568,10 @@ const Status InsertFileScan::insertRecord(const Record &rec, RID &outRid)
         newPage->init(newPageNo);
         newPage->setNextPage(-1);
 
-
         // Link the old page to the new one
         status = curPage->setNextPage(newPageNo);
-        if (status != OK) return status;
+        if (status != OK)
+            return status;
 
         // Unpin old page
         status = bufMgr->unPinPage(filePtr, curPageNo, true);
@@ -564,18 +585,17 @@ const Status InsertFileScan::insertRecord(const Record &rec, RID &outRid)
 
         curPage = newPage;
         curPageNo = newPageNo;
-    
+
         curDirtyFlag = true;
-       
-    
+
         // Try inserting again into new page
         status = curPage->insertRecord(rec, outRid);
     }
-    if (status != OK) return status;
+    if (status != OK)
+        return status;
 
     headerPage->recCnt++;
     hdrDirtyFlag = true;
     curDirtyFlag = true;
     return OK;
-    
 }
