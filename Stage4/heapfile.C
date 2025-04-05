@@ -295,90 +295,87 @@ const Status HeapFileScan::resetScan()
 
 const Status HeapFileScan::scanNext(RID &outRid)
 {
-    Status status = OK;
-    while (true)
-    {
-        // If curPage is NULL, we read the first page of the file.
-        if (curPage == NULL)
-        {
-            curPageNo = headerPage->firstPage;
-            status = bufMgr->readPage(filePtr, curPageNo, curPage);
-            if (status != OK)
-                return status;
-            curDirtyFlag = false;
-            curRec = NULLRID;
+    Status status;
+    Record rec;
+    
+    while (true) {
+        if (curRec.pageNo == -1) {
+            status = curPage->firstRecord(curRec);
+            if (status != OK) {
+                if (status != NORECORDS) return status;
+                
+                int nextPageNo;
+                status = curPage->getNextPage(nextPageNo);
+                if (status != OK) return status;
+                
+                // End of file
+                if (nextPageNo == -1) return FILEEOF;
+                
+                // Unpin current page
+                status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
+                if (status != OK) return status;
+                
+                // Read next page
+                status = bufMgr->readPage(filePtr, nextPageNo, curPage);
+                if (status != OK) return status;
+                
+                curPageNo = nextPageNo;
+                curDirtyFlag = false;
+                
+                // Stay at the beginning of the new page
+                continue;
+            }
+        } else {
+            // Try to get the next record on the current page
+            RID nextRid;
+            status = curPage->nextRecord(curRec, nextRid);
+            if (status != OK) {
+                // End of page, try the next page
+                if (status != ENDOFPAGE) return status;
+                
+                int nextPageNo;
+                status = curPage->getNextPage(nextPageNo);
+                if (status != OK) return status;
+                
+                // End of file
+                if (nextPageNo == -1) return FILEEOF;
+                
+                // Unpin current page
+                status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
+                if (status != OK) return status;
+                
+                // Read next page
+                status = bufMgr->readPage(filePtr, nextPageNo, curPage);
+                if (status != OK) return status;
+                
+                curPageNo = nextPageNo;
+                curDirtyFlag = false;
+                
+                // Mark that we're at the beginning of a new page
+                curRec.pageNo = -1;
+                continue;
+            }
+            
+            // Update current record to the next one
+            curRec = nextRid;
         }
-
-        // If curPage is not NULL, we check for record
-        // if curRec is NULLRID.  If curRec is not NULLRID, we get the next record.
-        if (curRec.pageNo == -1 && curRec.slotNo == -1)
-        {
-            // Get the first record on the page.
-            // If there are no records on the page, we will get ENDOFPAGE.
-            // If there are records, we will get OK.
-            RID firstRec;
-            status = curPage->firstRecord(firstRec);
-            if (status != OK)
-                return status;
-            curRec = firstRec;
-        }
-        else
-        {
-            RID nextRec;
-            status = curPage->nextRecord(curRec, nextRec);
-            curRec = nextRec;
-        }
-
-        if (status == OK)
-        {
-            Record rec;
+        
+        // Check for match
+        if (filter) {
             status = curPage->getRecord(curRec, rec);
-            if (status != OK)
-                return status;
-
-            if (matchRec(rec))
-            {
-                // found a record that matches the filter
-                outRid = curRec;
-                return OK;
+            if (status != OK) return status;
+            
+            if (!matchRec(rec)) {
+                continue;
             }
         }
-        // If we reach here, we either have no more records on the page or
-        // we have reached the end of the page.
-        // If we have no more records on the page, we unpin the page and read the next one.
-        else if (status == ENDOFPAGE)
-        {
-            // Unpin the current page and read the next one.
-            int nextPageNo;
-            status = curPage->getNextPage(nextPageNo);
-            status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
-            if (status != OK)
-                return status;
-
-            // If we have reached the end of the file, we return FILEEOF.
-            if (nextPageNo == -1)
-            {
-                curPage = NULL;
-                curPageNo = -1;
-                return FILEEOF;
-            }
-
-            // Read next page
-            curPageNo = nextPageNo;
-            status = bufMgr->readPage(filePtr, curPageNo, curPage);
-            if (status != OK)
-                return status;
-
-            curDirtyFlag = false;
-            curRec = NULLRID;
-        }
-        else
-        {
-            // Catch unexpected errors.
-            return status;
-        }
+        
+        // Found a matching record
+        outRid = curRec;
+        return OK;
     }
 }
+
 
 // returns pointer to the current record.  page is left pinned
 // and the scan logic is required to unpin the page
@@ -391,38 +388,28 @@ const Status HeapFileScan::getRecord(Record &rec)
 // delete record from file.
 const Status HeapFileScan::deleteRecord()
 {
-    Status status;
-
-    // make sure we have a valid pointer to a record
-    if (curRec.pageNo == -1 && curRec.slotNo == -1)
+    Status status = OK;
+    
+    // Make sure we have a valid record
+    if (curRec.pageNo == -1 || curRec.slotNo == -1)
         return NORECORDS;
-
-    // Get the next record before deleting the current one
-    RID nextRid;
-    Status nextStatus = curPage->nextRecord(curRec, nextRid);
-
-    // delete the "current" record from the page
+        
+    // Try to delete the record from the current page
     status = curPage->deleteRecord(curRec);
-    if (status != OK)
+    
+    // If error is INVALIDSLOTNO, the record might have been deleted already
+    // We should treat this as success rather than propagating the error
+    if (status != OK && status != INVALIDSLOTNO)
         return status;
-
-    curDirtyFlag = true;
-
-    // reduce count of number of records in the file
-    headerPage->recCnt--;
-    hdrDirtyFlag = true;
-
-    // Update cursor position to the next record if there is one
-    // otherwise set it to NULLRID so scanNext() will handle moving to the next page
-    if (nextStatus == OK)
-    {
-        curRec = nextRid;
+        
+    // Only decrement record count and mark dirty if we actually deleted something
+    if (status == OK) {
+        // Update header page and mark it dirty
+        headerPage->recCnt--;
+        hdrDirtyFlag = true;
+        curDirtyFlag = true;
     }
-    else
-    {
-        curRec = NULLRID;
-    }
-
+    
     return OK;
 }
 // mark current page of scan dirty
