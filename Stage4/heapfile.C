@@ -78,7 +78,6 @@ HeapFile::HeapFile(const string &fileName, Status &returnStatus)
     Status status;
     Page *pagePtr;
 
-    cout << "opening file " << fileName << endl;
 
     // open the file and read in the header page and the first data page
     if ((status = db.openFile(fileName, filePtr)) == OK)
@@ -121,7 +120,6 @@ HeapFile::HeapFile(const string &fileName, Status &returnStatus)
         curRec = NULLRID;
 
         returnStatus = OK;
-        cerr << "Finished HeapFile()" << endl;
     }
     else
     {
@@ -541,45 +539,48 @@ const Status InsertFileScan::insertRecord(const Record &rec, RID &outRid)
 
     // Try to insert record into current page
     status = curPage->insertRecord(rec, outRid);
-    if (status == OK)
-    {
-        // Bookkeeping
-        headerPage->recCnt++;
-        hdrDirtyFlag = true;
-        curDirtyFlag = true;
-        return OK;
-    }
+
     // If there is no space on current page
     if (status == NOSPACE)
     {
-        // Unpin old page
-        status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
-        if (status != OK)
-            return status;
-
+      
         // Allocate and initialize new page
-        status = bufMgr->allocPage(filePtr, curPageNo, curPage);
+        status = bufMgr->allocPage(filePtr, newPageNo, newPage);
+
         if (status != OK)
             return status;
-        curPage->init(curPageNo);
+        newPage->init(newPageNo);
+        newPage->setNextPage(-1);
+
+
+        // Link the old page to the new one
+        status = curPage->setNextPage(newPageNo);
+        if (status != OK) return status;
+
+        // Unpin old page
+        status = bufMgr->unPinPage(filePtr, curPageNo, true);
+        if (status != OK)
+            return status;
 
         // Update header
-        headerPage->lastPage = curPageNo;
+        headerPage->lastPage = newPageNo;
         headerPage->pageCnt++;
         hdrDirtyFlag = true;
-        curDirtyFlag = true;
 
+        curPage = newPage;
+        curPageNo = newPageNo;
+    
+        curDirtyFlag = true;
+       
+    
         // Try inserting again into new page
         status = curPage->insertRecord(rec, outRid);
-        if (status == OK)
-        {
-            headerPage->recCnt++;
-            return OK;
-        }
-        else
-        {
-            return status;
-        }
-        return status;
     }
+    if (status != OK) return status;
+
+    headerPage->recCnt++;
+    hdrDirtyFlag = true;
+    curDirtyFlag = true;
+    return OK;
+    
 }

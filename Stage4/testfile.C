@@ -114,12 +114,15 @@ int main(int argc, char **argv)
 			status = file1->getRecord(ridArray[i], dbrec2);
     	    if (status != OK) error.print(status);
 
-
+           
 			// compare with what we should get back
-			if (memcmp(&rec1, dbrec2.data, sizeof(RECORD)) != 0) 
-			    cout << "err0r reading record " << i << " back" << endl;
+			if (memcmp(&rec1, dbrec2.data, sizeof(RECORD)) != 0) {
+                cout << "err0r reading record " << i << " back" << endl;
+                
+            }
+
 		}
-		cout << "getRecord() tests passed successfully" << endl;
+		cout << "getRecord() tests passed successfully" << endl; //WE PASS THIS
     }
     delete file1;
     
