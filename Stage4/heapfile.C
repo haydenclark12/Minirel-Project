@@ -180,13 +180,10 @@ const int HeapFile::getRecCnt() const
 const Status HeapFile::getRecord(const RID &rid, Record &rec)
 {
     // If the current page is already pinned, check for the record.
-    if (curPage == NULL || curPageNo != rid.pagoNo)
+    Status status;
+    if (curPage == NULL || curPageNo != rid.pageNo)
     {
-<<<<<<< HEAD
         if (curPage != NULL)
-=======
-        if (curPavge != NULL)
->>>>>>> e2c59a2c18dfc9cb733ebc7969eafe0c8fe05c1c
         {
             status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
             if (status != OK)
@@ -194,11 +191,11 @@ const Status HeapFile::getRecord(const RID &rid, Record &rec)
         }
 
         // Read the page containing the record
-        status = bufMgr->readPage(filePtr, rid.pagoNo, curPage);
+        status = bufMgr->readPage(filePtr, rid.pageNo, curPage);
         if (status != OK)
             return status;
 
-        curPageNo = rid.pagoNo;
+        curPageNo = rid.pageNo;
         curDirtyFlag = false; // Page default is clean right after being read in.
     }
 
@@ -304,7 +301,7 @@ const Status HeapFileScan::scanNext(RID &outRid)
 
     while (true)
     {
-
+        Status status;
         // If curPage is NULL, we read the first page of the file.
         if (curPage == NULL)
         {
@@ -318,13 +315,25 @@ const Status HeapFileScan::scanNext(RID &outRid)
 
         // If curPage is not NULL, we check for record
         // if curRec is NULLRID.  If curRec is not NULLRID, we get the next record.
-        if (curRec == NULLRID)
+        if (curRec.pageNo == -1 && curRec.slotNo == -1)
+        {
+            // Get the first record on the page.
+            // If there are no records on the page, we will get ENDOFPAGE.
+            // If there are records, we will get OK.
+            RID firstRec;
+            status = curPage->firstRecord(firstRec);
+            if (status != OK)
+                return status;
+            curRec = firstRec;
+        }
+        else if (curRec.pageNo != -1 && curRec.slotNo != -1)
         {
             status = curPage->firstRecord(curRec);
         }
         else
         {
-            status = curPage->nextRecord(curRec);
+            RID nextRec; // TODO: do we need this???
+            status = curPage->nextRecord(curRec, nextRec);
         }
 
         if (status == OK)
@@ -348,16 +357,17 @@ const Status HeapFileScan::scanNext(RID &outRid)
         else if (status == ENDOFPAGE)
         {
             // Unpin the current page and read the next one.
-            int nextPageNo = curPage->getNextPage();
+            int nextPageNo;
+            status = curPage->getNextPage(nextPageNo);
             status = bufMgr->unPinPage(filePtr, curPageNo, curDirtyFlag);
             if (status != OK)
                 return status;
 
             // If we have reached the end of the file, we return FILEEOF.
-            if (nextPageNo == INVALID_PAGE)
+            if (nextPageNo == -1)
             {
                 curPage = NULL;
-                curPageNo = INVALID_PAGE;
+                curPageNo = -1;
                 return FILEEOF;
             }
 
