@@ -3,6 +3,7 @@
         "heapfile.C": "cpp",
         "testfile.C": "cpp",
         "page.C": "cpp",
-        "buf.C": "cpp"
+        "buf.C": "cpp",
+        "db.C": "cpp"
     }
 }

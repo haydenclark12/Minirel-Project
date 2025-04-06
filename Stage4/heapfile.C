@@ -60,15 +60,46 @@ const Status createHeapFile(const string fileName)
         if (status != OK)
             return status;
 
+        db.closeFile(file); 
+        if(status != OK)
+            return status;
         return OK;
     }
     return (FILEEXISTS);
 }
 
-// routine to destroy a heapfile
 const Status destroyHeapFile(const string fileName)
 {
-    return (db.destroyFile(fileName));
+    Status status;
+    File *file;
+    bool fileWasOpen = true;
+    
+    // Try to open the file to get a handle
+    status = db.openFile(fileName, file);
+    if (status != OK) {
+        // If we can't open it, it might be because it doesn't exist
+        // In that case, just return the error
+        if (status != FILENOTOPEN) 
+            return status;
+        fileWasOpen = false;
+    }
+    
+    if (fileWasOpen) {
+        // Flush all pages for this file from the buffer
+        status = bufMgr->flushFile(file);
+        if (status != OK) {
+            db.closeFile(file);
+            return status;
+        }
+        
+        // Close the file
+        status = db.closeFile(file);
+        if (status != OK)
+            return status;
+    }
+    
+    // Now destroy the file
+    return db.destroyFile(fileName);
 }
 
 // constructor opens the underlying file
@@ -97,6 +128,8 @@ HeapFile::HeapFile(const string &fileName, Status &returnStatus)
         if (status != OK)
         {
             cerr << "failed to read header page\n";
+            bufMgr->unPinPage(filePtr, headerPageNo, hdrDirtyFlag);
+            db.closeFile(filePtr);
             returnStatus = status;
             return;
         }
@@ -112,6 +145,8 @@ HeapFile::HeapFile(const string &fileName, Status &returnStatus)
         if (status != OK)
         {
             cerr << "failed to read first data page\n";
+            bufMgr->unPinPage(filePtr, headerPageNo, hdrDirtyFlag);
+            db.closeFile(filePtr);
             returnStatus = status;
             return;
         }
