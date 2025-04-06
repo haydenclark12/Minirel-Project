@@ -65,6 +65,7 @@ const Status createHeapFile(const string fileName)
             return status;
         return OK;
     }
+    db.closeFile(file); 
     return (FILEEXISTS);
 }
 
