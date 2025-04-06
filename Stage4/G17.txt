@@ -1,0 +1,9 @@
+Members: 
+    Hayden Clark - hdclark2@wisc.edu
+    Theo Leao Larrieux - leolarrieux@wisc.edu
+    Luke Janssen - lmjanssen@wisc.edu
+
+Contributions:
+    Hayden Clark - Implemented createHeapFile(), HeapFile(), and insertRecord().
+    Luke Janssen - Implemented scanNext() and getRecord() methods; debugged createHeapFile() and HeapFile() constructor. 
+    Theo Leao Larrieux - Helped with scanNext() implementation by debugging and implementing new version to pass tests, pair debugged methods with Luke.

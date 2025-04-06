@@ -424,29 +424,16 @@ const Status HeapFileScan::getRecord(Record &rec)
 // delete record from file.
 const Status HeapFileScan::deleteRecord()
 {
-    Status status = OK;
-    
-    // Make sure we have a valid record
-    if (curRec.pageNo == -1 || curRec.slotNo == -1)
-        return NORECORDS;
-        
-    // Try to delete the record from the current page
+    Status status;
+
+    // delete the "current" record from the page
     status = curPage->deleteRecord(curRec);
-    
-    // If error is INVALIDSLOTNO, the record might have been deleted already
-    // We should treat this as success rather than propagating the error
-    if (status != OK && status != INVALIDSLOTNO)
-        return status;
-        
-    // Only decrement record count and mark dirty if we actually deleted something
-    if (status == OK) {
-        // Update header page and mark it dirty
-        headerPage->recCnt--;
-        hdrDirtyFlag = true;
-        curDirtyFlag = true;
-    }
-    
-    return OK;
+    curDirtyFlag = true;
+
+    // reduce count of number of records in the file
+    headerPage->recCnt--;
+    hdrDirtyFlag = true; 
+    return status;
 }
 // mark current page of scan dirty
 const Status HeapFileScan::markDirty()
