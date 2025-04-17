@@ -64,7 +64,6 @@ const Status QU_Delete(const string &relation,
 		return status;
 	}
 
-	// Convert attribute value to proper binary format
 	char *filterVal = new char[attrDesc.attrLen];
 
 	switch (type)
@@ -89,7 +88,6 @@ const Status QU_Delete(const string &relation,
 	}
 	}
 
-	// Create scanner and start filtered scan
 	HeapFileScan scan(relation, status);
 	if (status != OK)
 	{
