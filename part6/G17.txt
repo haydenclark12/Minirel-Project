@@ -1,0 +1,9 @@
+Members: 
+    Hayden Clark - hdclark2@wisc.edu
+    Theo Leao Larrieux - leolarrieux@wisc.edu
+    Luke Janssen - lmjanssen@wisc.edu
+
+Contributions:
+    Hayden Clark - Finished QU_Select
+    Luke Janssen - 
+    Theo Leao Larrieux -
