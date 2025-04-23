@@ -5,5 +5,5 @@ Members:
 
 Contributions:
     Hayden Clark - Finished QU_Select
-    Luke Janssen - 
-    Theo Leao Larrieux -
+    Luke Janssen - Finished delete.C
+    Theo Leao Larrieux - Finished insert.C
