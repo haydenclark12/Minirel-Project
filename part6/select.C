@@ -27,7 +27,7 @@ const Status QU_Select(const string & result,
 		       const char *attrValue)
 {
    // Qu_Select sets up things and then calls ScanSelect to do the actual work
-    cout << "Doing QU_Select " << endl;
+    // cout << "Doing QU_Select " << endl;
 
 	// Create an array of projection descriptions for each projection
 	AttrDesc* projDescs = new AttrDesc[projCnt];
@@ -113,7 +113,7 @@ const Status ScanSelect(const string & result,
 			const char *filter,
 			const int reclen)
 {
-    cout << "Doing HeapFileScan Selection using ScanSelect()" << endl;
+    // cout << "Doing HeapFileScan Selection using ScanSelect()" << endl;
 
 	Status status;
 	HeapFileScan scan(projNames[0].relName,status);

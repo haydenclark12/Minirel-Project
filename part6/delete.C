@@ -127,6 +127,4 @@ const Status QU_Delete(const string &relation,
 
 	// cout << "Deleted " << deletedCount << " records" << endl;
 	return OK;
-
-	return OK;
 }
